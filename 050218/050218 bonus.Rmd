@@ -1,0 +1,36 @@
+---
+title: "050218 bonus"
+author: "CC"
+date: "May 2, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+BONUS predictive modeling with PCA Components
+
+```{r}
+##Predicting malignacy of new samples
+
+url1 <- "https://tinyurl.com/new-samples-CSV"
+new <- read.csv(url1)
+
+
+```
+
+
+
+```{r}
+ncp <- predict(wisc.pr, newdata=new)
+ncp
+```
+
+
+```{r}
+plot(wisc.pr$x[,1:2], col=wisc.hclust.clusters)
+points(ncp[,1], ncp[,2], col=c("purple", "blue"), pch = 16, cex = 2)
+```
+
