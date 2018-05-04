@@ -229,13 +229,13 @@ table(wisc.pr.hclust.clusters, diagnosis)
 
 
 ```{r}
-install.packages("rgl")
+#install.packages("rgl")
 ```
 
 
 ```{r}
-library(rgl)
-plot3d(wisc.pr$x)
+#library(rgl)
+#plot3d(wisc.pr$x)
 ```
 
 
