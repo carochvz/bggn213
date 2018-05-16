@@ -73,3 +73,7 @@ library(ggplot2)
 ggplot(geno, aes(geno, exp)) + geom_boxplot()
 ```
 
+
+
+
+
