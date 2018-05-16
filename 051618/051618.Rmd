@@ -1,0 +1,75 @@
+---
+title: "bioinformatics 051618"
+author: "CC"
+date: "May 16, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+##1000 Genome project data
+Read 1000 genome data for MXL dataset
+
+```{r}
+genotype <- read.csv("samplegenotypesmxl.csv")
+```
+
+Just print out a column and now the total of samples for each condition by using table
+```{r}
+table(genotype[,2])
+```
+
+```{r}
+table(genotype[,2])/nrow(genotype) *100
+
+```
+
+
+
+
+```{r}
+library(seqinr)
+library(gtools)
+phred <- asc( s2c("DDDDCDEDCDDDDBBDDDCC@") ) - 33
+phred
+```
+
+
+#RNA-Seq result analysis
+
+```{r}
+geno <- read.table("rs8067378_ENSG00000172057.6.txt")
+
+summary(geno)
+
+```
+
+
+```{r}
+summary(geno$exp[geno$geno == "G/G"])
+summary(geno$exp[geno$geno == "A/G"])
+summary(geno$exp[geno$geno == "A/A"])
+
+```
+
+
+
+##Let's make a boxplot
+
+```{r}
+boxplot(exp ~ geno , data = geno, notch = TRUE)
+
+
+
+
+```
+
+```{r}
+library(ggplot2)
+
+ggplot(geno, aes(geno, exp)) + geom_boxplot()
+```
+
