@@ -1,0 +1,307 @@
+---
+title: "051818"
+author: "CC"
+date: "May 18, 2018"
+output: 
+  html_document: 
+    keep_md: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(BiocInstaller)
+```
+
+obtaining the data 
+```{r}
+counts <- read.csv("data/airway_scaledcounts.csv", stringsAsFactors = FALSE)
+metadata <-  read.csv("data/airway_metadata.csv", stringsAsFactors = FALSE)
+```
+
+```{r}
+colnames(counts)[-1] ==
+metadata$id
+```
+
+Calculating the mean for the control values
+
+```{r}
+#Find id for those labeled controls
+control <- metadata[metadata[,"dex"]=="control",]
+
+#Get the mean of the control 
+#selecting the 4 ids from our new table "control" to be looked at the table counts. Then we are adding each row and dividing it by the sample number, which is four.
+control.mean <- rowSums( counts[ ,control$id] )/ nrow(control)
+
+#If we leave the 4 and our sample number changes then this formula will no longer be calculating the mean. So i changed the 4 for nrow(control)
+
+names(control.mean) <- counts$ensgene
+```
+
+
+
+Calculating the mean for the treated samples
+```{r}
+#Find id for those labeled controls
+treated <- metadata[metadata[,"dex"]=="treated",]
+
+#Get the mean of the control 
+#selecting the 4 ids from our new table "control" to be looked at the table counts. Then we are adding each row and dividing it by the sample number, which is four.
+treated.mean <- rowSums( counts[ ,treated$id] )/ nrow(treated)
+
+#If we leave the 4 and our sample number changes then this formula will no longer be calculating the mean. So i changed the 4 for nrow(control)
+
+names(treated.mean) <- counts$ensgene
+```
+
+
+Take a look at each
+```{r}
+meancounts <- data.frame(control.mean, treated.mean)
+
+colSums(meancounts)
+```
+
+
+Plot it
+```{r}
+plot(meancounts)
+```
+
+
+Plot with log axis so we can see our data
+```{r}
+plot(meancounts, log="xy")
+```
+
+
+
+
+
+#Calculate log2foldchange and add it to meancounts
+```{r}
+meancounts$log2fc <- log2(meancounts[,"treated.mean"]/meancounts[,"control.mean"])
+head(meancounts)
+
+
+# NaN (“not a number””) and -Inf (negative infinity) results
+```
+
+
+#The which will tell you what the zero values are true of the meancounts
+```{r}
+zero.vals <- which(meancounts[,1:2]==0, arr.ind=TRUE)
+
+to.rm <- unique(zero.vals[,1])
+
+head(zero.vals)
+```
+
+Now remove the zero count containing genes
+```{r}
+mycounts <- meancounts[-to.rm,]
+head(mycounts)
+
+```
+
+```{r}
+up.ind <- mycounts$log2fc > 2
+down.ind <- mycounts$log2fc < (-2)
+```
+
+```{r}
+paste("up:", sum(up.ind))
+paste("down:", sum(down.ind))
+```
+
+
+```{r}
+anno <- read.csv("data/annotables_grch38.csv")
+head(anno)
+head(mycounts)
+```
+
+
+```{r}
+results <- merge(mycounts, anno, by.x = "row.names", by.y = "ensgene")
+head(results)
+```
+
+
+```{r}
+library("AnnotationDbi")
+library("org.Hs.eg.db")
+```
+
+
+To get a list of all available key types
+
+```{r}
+columns(org.Hs.eg.db)
+```
+
+
+```{r}
+mycounts$symbol <- mapIds(org.Hs.eg.db,
+                     keys=row.names(mycounts),
+                     column="SYMBOL",
+                     keytype="ENSEMBL",
+                     multiVals="first")
+
+
+#entrez
+mycounts$entrez <- mapIds(org.Hs.eg.db,
+                     keys=row.names(mycounts),
+                     column="ENTREZID",
+                     keytype="ENSEMBL",
+                     multiVals="first")
+
+
+mycounts$uniprot <- mapIds(org.Hs.eg.db,
+                     keys=row.names(mycounts),
+                     column="UNIPROT",
+                     keytype="ENSEMBL",
+                     multiVals="first")
+
+```
+
+
+
+```{r}
+head(mycounts[up.ind,])
+```
+
+
+
+
+#DESeq2 Analysis
+
+Set up DESeq DataSet
+```{r}
+library(DESeq2)
+
+dds <- DESeqDataSetFromMatrix(countData=counts, 
+                              colData=metadata, 
+                              design=~dex, 
+                              tidy=TRUE)
+dds
+
+```
+
+
+```{r}
+dds <- DESeq(dds)
+```
+
+```{r}
+res <- results(dds)
+res
+```
+We can summarize results
+```{r}
+summary(res)
+```
+
+order my results by p-value
+```{r}
+
+resOrdered <- res[order(res$pvalue),]
+res05 <- results(dds, alpha=0.05)
+summary(res05)
+```
+
+Access the actual subset of the data.frame passing a threshold with the subset function
+
+```{r}
+resSig05 <- subset(as.data.frame(res), padj < 0.05)
+nrow(resSig05)
+
+```
+
+```{r}
+resSig01 <- subset(as.data.frame(res), padj < 0.01)
+nrow(resSig01)
+```
+
+```{r}
+resSig01$symbol <- mapIds(org.Hs.eg.db,
+                     keys=row.names(resSig01),
+                     column="SYMBOL",
+                     keytype="ENSEMBL",
+                     multiVals="first")
+
+#entrez
+resSig01$entrez <- mapIds(org.Hs.eg.db,
+                     keys=row.names(resSig01),
+                     column="ENTREZID",
+                     keytype="ENSEMBL",
+                     multiVals="first")
+
+
+resSig01$uniprot <- mapIds(org.Hs.eg.db,
+                     keys=row.names(resSig01),
+                     column="UNIPROT",
+                     keytype="ENSEMBL",
+                     multiVals="first")
+
+
+
+
+
+```
+
+
+
+
+
+
+arrange by adjusted p-value
+```{r}
+ord <- order( resSig01$padj )
+#View(res01[ord,])
+head(resSig01[ord,])
+```
+
+write it up
+
+```{r}
+write.csv(resSig01[ord,], "signif01_results.csv")
+```
+
+
+##Plotting
+```{r}
+i <- grep("CRISPLD2", resSig01$symbol)
+resSig01[i,]
+```
+
+```{r}
+rownames(resSig01[i,])
+```
+
+Let's plot the counts with tht gene id. the interesting group variable is the "dex" column
+
+```{r}
+plotCounts(dds, gene="ENSG00000103196", intgroup="dex")
+```
+
+```{r}
+# Return the data
+d <- plotCounts(dds, gene="ENSG00000103196", intgroup="dex", returnData=TRUE)
+head(d)
+```
+
+With this daata we can do a box plot
+```{r}
+boxplot(count ~ dex , data=d)
+```
+
+
+```{r}
+library(ggplot2)
+ggplot(d, aes(dex, count)) + geom_boxplot(aes(fill=dex)) + scale_y_log10() + ggtitle("CRISPLD2")
+```
+
